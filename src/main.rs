@@ -10,32 +10,22 @@
 // headers CRLF
 // message-body
 
-use std::{
-    error::Error,
-    io::{Read, Write},
-    net::{TcpListener, TcpStream},
-};
+use std::{error::Error, net::TcpListener};
 
-use skv::KeyValueRequest;
+use skv::KeyValueStore;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let listener = TcpListener::bind("localhost:3400")
         .expect("Failed to bind to localhost (127.0.0.1) on port 3400");
 
+    let key_value_store = KeyValueStore::new();
+
     for stream in listener.incoming() {
-        handle_connection(stream?);
+        match key_value_store.handle_request(stream?) {
+            Ok(_) => (),
+            Err(e) => panic!("Failed to serve request: {}", e),
+        }
     }
 
     Ok(())
-}
-
-fn handle_connection(mut stream: TcpStream) {
-    let mut buf = [0; 1024];
-    stream.read(&mut buf).unwrap();
-
-    let kvr = KeyValueRequest::new(&buf);
-    let kvr_response = kvr.handle_request();
-
-    stream.write(kvr_response.unwrap().as_bytes()).unwrap();
-    stream.flush().unwrap();
 }
