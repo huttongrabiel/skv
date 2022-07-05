@@ -60,7 +60,7 @@ impl KeyValueStore {
             body,
         );
 
-        stream.write(&response.as_bytes()).unwrap();
+        stream.write(response.as_bytes()).unwrap();
         stream.flush().unwrap();
 
         Ok(())
@@ -70,6 +70,7 @@ impl KeyValueStore {
         &self,
         buf: &[u8; 1024],
     ) -> Result<String, &'static str> {
+        let buf_split = parse_body_from_request(buf);
         Ok("get request".to_string())
     }
 
@@ -86,4 +87,8 @@ impl KeyValueStore {
     ) -> Result<String, &'static str> {
         Ok("delete request".to_string())
     }
+}
+
+fn parse_body_from_request<'a>(buf: &'a [u8; 1024]) -> &'a [u8] {
+    buf.split(|byte| *byte == b'\r').last().unwrap()
 }
