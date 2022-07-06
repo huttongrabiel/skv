@@ -10,12 +10,13 @@
 // headers CRLF
 // message-body
 
+use clap::Parser;
+use skv::KeyValueStore;
 use std::{error::Error, net::TcpListener};
 
-use skv::KeyValueStore;
-
 fn main() -> Result<(), Box<dyn Error>> {
-    let listener = TcpListener::bind("localhost:3400")
+    let args = Args::parse();
+    let listener = TcpListener::bind(format!("localhost:{}", args.port))
         .expect("Failed to bind to localhost (127.0.0.1) on port 3400");
 
     let mut key_value_store = KeyValueStore::new();
@@ -28,4 +29,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
+}
+
+/// A simple key-value (skv) store.
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Specify port on localhost to run skv server.
+    #[clap(short, long, value_parser, default_value = "3400")]
+    port: String,
 }
