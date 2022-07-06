@@ -20,6 +20,12 @@ Start the server. It will run on localhost (127.0.0.1) on port 3400.
 cargo run
 ```
 
+User can also specify port by doing:
+
+```
+cargo run -- -p <port>
+```
+
 Supported requests are GET, PUT, and DELETE.
 
 GET Request
@@ -36,3 +42,6 @@ DELETE Request (careful with this one ;)...)
 ```
 curl -X DELETE localhost:3400/<key>
 ```
+
+# TODO
+- [ ] Switch to multi-threaded
