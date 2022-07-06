@@ -1,12 +1,13 @@
 use std::{
     collections::HashMap,
+    fmt::Display,
     io::{Read, Write},
     net::TcpStream,
     str,
 };
 
 pub struct KeyValueStore {
-    key_value_store: HashMap<String, Box<()>>,
+    key_value_store: HashMap<String, Box<dyn Display>>,
 }
 
 impl KeyValueStore {
@@ -29,7 +30,7 @@ impl KeyValueStore {
     /// * Writing to the stream could panic.
     /// * Flushing the stream could panic.
     pub fn handle_request(
-        &self,
+        &mut self,
         mut stream: TcpStream,
     ) -> Result<(), &'static str> {
         let mut buf = [0; 1024];
@@ -66,35 +67,52 @@ impl KeyValueStore {
     }
 
     fn handle_get_request(
-        &self,
+        &mut self,
         buf: &[u8; 1024],
     ) -> Result<String, &'static str> {
-        let body = parse_body_from_request(buf);
+        let body = parse_body_from_request(buf)
+            .expect("Failed to parse body data from request");
+
         Ok(body)
     }
 
     fn handle_put_request(
-        &self,
+        &mut self,
         buf: &[u8; 1024],
     ) -> Result<String, &'static str> {
-        let body = parse_body_from_request(buf);
-        Ok(body)
+        let key = parse_key_from_request(buf)
+            .expect("Failed to parse key data from request");
+        let value = parse_body_from_request(buf)
+            .expect("Failed to parse body data from request");
+
+        eprintln!("Key: {}", key);
+
+        //        self.key_value_store.insert(key, Box::new(value.clone()));
+
+        Ok(value)
     }
 
     fn handle_delete_request(
-        &self,
+        &mut self,
         buf: &[u8; 1024],
     ) -> Result<String, &'static str> {
-        let body = parse_body_from_request(buf);
+        let body = parse_body_from_request(buf)
+            .expect("Failed to parse body data from request");
+
         Ok(body)
     }
 }
 
-fn parse_body_from_request(buf: &[u8; 1024]) -> String {
-    eprintln!("buf: {:?}", buf);
-    let buf_split = buf.split(|byte| *byte == b'\n').last().unwrap();
-    let buf_split = buf_split.split(|byte| *byte == 0).next().unwrap();
-    str::from_utf8(buf_split).unwrap().to_string()
+fn parse_body_from_request(buf: &[u8; 1024]) -> Result<String, ()> {
+    let body = buf.split(|byte| *byte == b'\n').last().unwrap();
+    let body = body.split(|byte| *byte == 0).next().unwrap();
+    Ok(str::from_utf8(body).unwrap().to_string())
+}
+
+fn parse_key_from_request(buf: &[u8; 1024]) -> Result<String, ()> {
+    let mut key = buf.split(|byte| *byte == b' ');
+    key.next();
+    Ok(str::from_utf8(key.next().unwrap()).unwrap().to_string())
 }
 
 #[cfg(test)]
@@ -158,6 +176,6 @@ mod test {
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0,
         ];
-        assert_eq!(parse_body_from_request(&buf), "so much nicer!!");
+        assert_eq!(parse_body_from_request(&buf).unwrap(), "so much nicer!!");
     }
 }

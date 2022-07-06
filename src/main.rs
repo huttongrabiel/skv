@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let listener = TcpListener::bind("localhost:3400")
         .expect("Failed to bind to localhost (127.0.0.1) on port 3400");
 
-    let key_value_store = KeyValueStore::new();
+    let mut key_value_store = KeyValueStore::new();
 
     for stream in listener.incoming() {
         match key_value_store.handle_request(stream?) {
