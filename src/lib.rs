@@ -105,14 +105,14 @@ impl KeyValueStore {
             .key_value_store
             .insert(key.clone(), Box::new(value.clone()))
         {
-            Some(val) => Ok(format!(
-                "Value associated with key, {}, \
-                        updated to {}, in key-value store.",
-                key, val
+            Some(_) => Ok(format!(
+                "Value associated with key, \"{}\", \
+                        updated to \"{}\", in key-value store.",
+                key, &value
             )),
             None => Ok(format!(
                 "[{}, {}], successfully inserted into key-value store",
-                key, value
+                key, &value
             )),
         }
     }
