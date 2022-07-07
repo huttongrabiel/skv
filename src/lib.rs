@@ -124,6 +124,26 @@ impl KeyValueStore {
         let key = parse_key_from_request(buf)
             .expect("Failed to parse key data from request.");
 
+        // TODO: Consider having this write to stream, though seems like a pain.
+        println!(
+            "Delete [{}, {}] from key-value store? \nType YES to confirm: ",
+            key,
+            self.key_value_store.get(&key).unwrap()
+        );
+
+        let mut delete_confirmation = String::new();
+        match std::io::stdin().read_line(&mut delete_confirmation) {
+            Ok(_) => (),
+            Err(_) => delete_confirmation = "NO".to_string(),
+        }
+
+        let delete_confirmation = delete_confirmation.trim();
+
+        if delete_confirmation != "YES" {
+            return Ok(String::from("Deletion canceled!"));
+        }
+
+        // Go ahead and attempt the deletion.
         match self.key_value_store.remove(&key) {
             Some(val) => Ok(format!(
                 "Key-value pair, [{}, {}], removed from key-value store.",
