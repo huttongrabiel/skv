@@ -1,15 +1,3 @@
-// HTTP Request
-//
-// Method Request-URI HTTP-Version CRLF
-// headers CRLF
-// message-body
-
-// HTTP Response
-//
-// HTTP-Version Status-Code Reason-Phrase CRLF
-// headers CRLF
-// message-body
-
 use clap::Parser;
 use skv::connection::KeyValueStore;
 use skv::thread::ThreadPool;
