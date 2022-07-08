@@ -24,27 +24,23 @@ impl KeyValueStore {
     /// Handle a TCP Request to the key-value store.
     ///
     /// Errors are propagated back to the caller.
-    ///
-    /// # Panics
-    ///
-    /// * Reading from the stream could panic.
-    /// * Writing to the stream could panic.
-    /// * Flushing the stream could panic.
     pub fn handle_request(
         &mut self,
         mut stream: TcpStream,
     ) -> Result<(), &'static str> {
         let mut buf = [0; 1024];
-        stream
-            .read(&mut buf)
-            .expect("Failed to read stream into byte buffer");
+        match stream.read(&mut buf) {
+            Ok(_) => (),
+            Err(_) => return Err("Failed to read stream to buffer"),
+        }
 
         // Verify request has valid HTTP header.
         let buf_string = str::from_utf8(&buf).unwrap();
         let pattern = Regex::new(r"\w{3,6}\s/\w*\sHTTP/1.1\r\n").unwrap();
-        // FIXME: We don't want to just shut off the server if we receive an
-        // invalid request.
-        assert!(pattern.is_match(buf_string));
+
+        if !pattern.is_match(buf_string) {
+            return Err("Invalid HTTP request received.");
+        }
 
         let get_request = b"GET";
         let put_request = b"PUT";
@@ -71,8 +67,14 @@ impl KeyValueStore {
             body
         );
 
-        stream.write(response.as_bytes()).unwrap();
-        stream.flush().unwrap();
+        match stream.write(response.as_bytes()) {
+            Ok(_) => (),
+            Err(_) => return Err("Failed to write to stream."),
+        }
+        match stream.flush() {
+            Ok(_) => (),
+            Err(_) => return Err("Failed to flush stream."),
+        };
 
         Ok(())
     }
@@ -81,8 +83,7 @@ impl KeyValueStore {
         &mut self,
         buf: &[u8; 1024],
     ) -> Result<String, &'static str> {
-        let key = parse_key_from_request(buf)
-            .expect("Failed to parse key from request.");
+        let key = parse_key_from_request(buf)?;
 
         let value: String = match self.key_value_store.get(&key) {
             Some(val) => val.to_string(),
@@ -96,10 +97,8 @@ impl KeyValueStore {
         &mut self,
         buf: &[u8; 1024],
     ) -> Result<String, &'static str> {
-        let key = parse_key_from_request(buf)
-            .expect("Failed to parse key data from request.");
-        let value = parse_body_from_request(buf)
-            .expect("Failed to parse body data from request.");
+        let key = parse_key_from_request(buf)?;
+        let value = parse_body_from_request(buf)?;
 
         match self
             .key_value_store
@@ -121,8 +120,7 @@ impl KeyValueStore {
         &mut self,
         buf: &[u8; 1024],
     ) -> Result<String, &'static str> {
-        let key = parse_key_from_request(buf)
-            .expect("Failed to parse key data from request.");
+        let key = parse_key_from_request(buf)?;
 
         match self.key_value_store.remove(&key) {
             Some(val) => Ok(format!(
@@ -134,16 +132,46 @@ impl KeyValueStore {
     }
 }
 
-fn parse_body_from_request(buf: &[u8; 1024]) -> Result<String, ()> {
-    let body = buf.split(|byte| *byte == b'\n').last().unwrap();
-    let body = body.split(|byte| *byte == 0).next().unwrap();
-    Ok(str::from_utf8(body).unwrap().to_string())
+fn parse_body_from_request(buf: &[u8; 1024]) -> Result<String, &'static str> {
+    let body = match buf.split(|byte| *byte == b'\n').last() {
+        Some(body) => body,
+        None => return Err("Failed to parse body out of request"),
+    };
+
+    // Body is everything after the final \r\n which means, depending on the
+    // size of the buffer used, it can have a lot of garbage values that look
+    // like [0,0,0,0,...]. This essentially trims all those off.
+    let body = match body.split(|byte| *byte == 0).next() {
+        Some(body) => body,
+        None => return Err(
+            "Failed to trim off rest of body, or possiblity of unread bytes.",
+        ),
+    };
+
+    let body_str = match str::from_utf8(body) {
+        Ok(str) => str,
+        Err(_) => return Err("Failed to convert stream bytes to str"),
+    };
+
+    Ok(body_str.to_string())
 }
 
-fn parse_key_from_request(buf: &[u8; 1024]) -> Result<String, ()> {
+fn parse_key_from_request(buf: &[u8; 1024]) -> Result<String, &'static str> {
     let mut key = buf.split(|byte| *byte == b' ');
+
     key.next();
-    let key = &key.next().unwrap()[1..];
+
+    // In an HTTP header the URI is the second element:
+    //  <request> <URI>.
+    //
+    //  So we move the iterator past the request to the URI.
+    let key = match key.next() {
+        Some(key) => key,
+        None => return Err("Failed to parse key out of request"),
+    };
+
+    let key = &key[1..];
+
     Ok(str::from_utf8(key).unwrap().to_string())
 }
 

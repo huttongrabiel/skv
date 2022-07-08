@@ -21,7 +21,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let kv_store = Arc::clone(&key_value_store);
         thread_pool.execute(move || {
-            kv_store.lock().unwrap().handle_request(stream).unwrap();
+            match kv_store.lock().unwrap().handle_request(stream) {
+                Ok(_) => (),
+                Err(e) => eprintln!("Error, try again: {}", e),
+            }
         });
     }
 
