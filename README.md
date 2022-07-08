@@ -44,4 +44,9 @@ curl -X DELETE localhost:3400/<key>
 ```
 
 # TODO
-- [ ] Switch to multi-threaded
+- [X] Switch to multi-threaded
+- [ ] REPL
+
+# Possible TODOS
+- [ ] Possibly encrypt values before storing in hashmap?
+- [ ] Possibly add frontend GUI for interacting with key-value store (Rust Yew?)
