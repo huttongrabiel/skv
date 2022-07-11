@@ -4,7 +4,6 @@ use std::{
     fmt::Display,
     io::{Read, Write},
     net::TcpStream,
-    str,
 };
 
 pub struct KeyValueStore {
@@ -35,10 +34,10 @@ impl KeyValueStore {
         }
 
         // Verify request has valid HTTP header.
-        let buf_string = str::from_utf8(&buf).unwrap();
+        let buf_string = String::from_utf8_lossy(&buf);
         let pattern = Regex::new(r"\w{3,6}\s/\w*\sHTTP/1.1\r\n").unwrap();
 
-        if !pattern.is_match(buf_string) {
+        if !pattern.is_match(&buf_string) {
             return Err("Invalid HTTP request received.");
         }
 
@@ -148,11 +147,7 @@ fn parse_body_from_request(buf: &[u8; 1024]) -> Result<String, &'static str> {
         ),
     };
 
-    let body_str = match str::from_utf8(body) {
-        Ok(str) => str,
-        Err(_) => return Err("Failed to convert stream bytes to str"),
-    };
-
+    let body_str = String::from_utf8_lossy(body);
     Ok(body_str.to_string())
 }
 
@@ -172,7 +167,7 @@ fn parse_key_from_request(buf: &[u8; 1024]) -> Result<String, &'static str> {
 
     let key = &key[1..];
 
-    Ok(str::from_utf8(key).unwrap().to_string())
+    Ok(String::from_utf8_lossy(key).to_string())
 }
 
 #[cfg(test)]
