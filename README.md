@@ -33,10 +33,19 @@ GET Request
 curl -X GET localhost:3400/<key>
 ```
 
+---
+
 PUT Request
 ```
 curl -X PUT localhost:3400/<key> --data <value>
 ```
+
+Users can also store file contents as values
+```
+curl -X PUT localhost:3400/<key> --data /path/to/file
+```
+
+---
 
 DELETE Request (careful with this one ;)...)
 ```
@@ -45,9 +54,6 @@ curl -X DELETE localhost:3400/<key>
 
 # TODO
 - [X] Switch to multi-threaded
-- [ ] Fix bad multi threading. The multi threading wraps the key-value store in
-a mutex which means the whole key-value store is inaccesible because the lock is
-acquired. Which totally defeats the purpose of multi threading.
 - [ ] REPL
 
 # Possible TODOS
