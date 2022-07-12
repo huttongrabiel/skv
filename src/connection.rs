@@ -2,8 +2,10 @@ use regex::Regex;
 use std::{
     collections::HashMap,
     fmt::Display,
+    fs,
     io::{Read, Write},
     net::TcpStream,
+    path::Path,
 };
 
 pub struct KeyValueStore {
@@ -84,10 +86,18 @@ impl KeyValueStore {
     ) -> Result<String, &'static str> {
         let key = parse_key_from_request(buf)?;
 
-        let value: String = match self.key_value_store.get(&key) {
+        let mut value: String = match self.key_value_store.get(&key) {
             Some(val) => val.to_string(),
             None => format!("Key '{}' not found in key-value store.", key),
         };
+
+        // If the value that corresponds to the given key is a file, read the
+        // file contents and print that to the stream.
+        if Path::exists(Path::new(&value))
+            && fs::metadata(&value).unwrap().is_file()
+        {
+            value = fs::read_to_string(&value).unwrap();
+        }
 
         Ok(value)
     }
@@ -97,7 +107,14 @@ impl KeyValueStore {
         buf: &[u8; 1024],
     ) -> Result<String, &'static str> {
         let key = parse_key_from_request(buf)?;
-        let value = parse_body_from_request(buf)?;
+        let mut value = parse_body_from_request(buf)?;
+
+        // If path is a file, read its contents into a string and store as value
+        if Path::exists(Path::new(&value))
+            && fs::metadata(&value).unwrap().is_file()
+        {
+            value = fs::read_to_string(&value).expect("Failed to read file.");
+        }
 
         match self
             .key_value_store
