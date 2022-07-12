@@ -126,7 +126,8 @@ impl KeyValueStore {
                 key, &value
             )),
             None => Ok(format!(
-                "[{}, {}], successfully inserted into key-value store",
+                "[\"{}\", \"{}\"], \n200 - Success: \
+                Inserted into key-value store",
                 key, &value
             )),
         }
