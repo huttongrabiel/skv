@@ -87,7 +87,10 @@ impl KeyValueStore {
         let key = parse_key_from_request(buf)?;
 
         let mut value: String = match self.key_value_store.get(&key) {
-            Some(val) => val.to_string(),
+            Some(val) => format!(
+                "{} \n200 - Success: Value retrieved from key-value store.",
+                val.to_string()
+            ),
             None => format!("Key '{}' not found in key-value store.", key),
         };
 
@@ -122,12 +125,13 @@ impl KeyValueStore {
         {
             Some(_) => Ok(format!(
                 "Value associated with key, \"{}\", \
-                        updated to \"{}\", in key-value store.",
+                        updated to \"{}\", in key-value store.
+                        200 - Success: Value updated.",
                 key, &value
             )),
             None => Ok(format!(
                 "[\"{}\", \"{}\"], \n200 - Success: \
-                Inserted into key-value store",
+                Entry inserted into key-value store.",
                 key, &value
             )),
         }
@@ -141,7 +145,8 @@ impl KeyValueStore {
 
         match self.key_value_store.remove(&key) {
             Some(val) => Ok(format!(
-                "Key-value pair, [{}, {}], removed from key-value store.",
+                "Key-value pair, [{}, {}], removed from key-value store.\
+                \n200 - Success: Entry deleted from key-value store.",
                 key, val
             )),
             None => Ok(format!("Key '{}' not found in key-value store.", key)),
