@@ -10,7 +10,13 @@ use std::{
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
     let listener = TcpListener::bind(format!("localhost:{}", args.port))
-        .expect("Failed to bind to localhost (127.0.0.1) on port 3400");
+        .expect(
+            format!(
+                "Failed to bind to localhost (127.0.0.1) on port {}",
+                args.port,
+            )
+            .as_str(),
+        );
 
     let key_value_store = Arc::new(Mutex::new(KeyValueStore::new()));
 
