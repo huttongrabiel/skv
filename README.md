@@ -33,6 +33,11 @@ GET Request
 curl -X GET localhost:3400/<key>
 ```
 
+To list all keys in the key-value store use the 'ls' key.
+```
+curl -X GET localhost:3400/ls
+```
+
 ---
 
 PUT Request
@@ -53,9 +58,5 @@ curl -X DELETE localhost:3400/<key>
 ```
 
 # TODO
-- [X] Switch to multi-threaded
-- [ ] REPL
-
-# Possible TODOS
-- [ ] Possibly encrypt values before storing in hashmap?
-- [ ] Possibly add frontend GUI for interacting with key-value store (Rust Yew?)
+- [ ] Data encryption/decryption
+- [ ] CLI (maybe)

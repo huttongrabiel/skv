@@ -86,6 +86,10 @@ impl KeyValueStore {
     ) -> Result<String, &'static str> {
         let key = parse_key_from_request(buf)?;
 
+        if key == "ls" {
+            return Ok(self.list_keys());
+        }
+
         let mut value: String = match self.key_value_store.get(&key) {
             Some(val) => format!(
                 "{} \n200 - Success: Value retrieved from key-value store.",
@@ -151,6 +155,14 @@ impl KeyValueStore {
             )),
             None => Ok(format!("Key '{}' not found in key-value store.", key)),
         }
+    }
+
+    fn list_keys(&self) -> String {
+        let mut keys = String::new();
+        for (key, _) in &self.key_value_store {
+            keys.push_str(format!("{}\n", key).as_str());
+        }
+        keys
     }
 }
 
