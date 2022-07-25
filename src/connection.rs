@@ -1,3 +1,4 @@
+use crate::crypto::generate_key;
 use regex::Regex;
 use std::{
     collections::HashMap,
@@ -13,11 +14,12 @@ pub struct KeyValueStore {
 }
 
 impl KeyValueStore {
-    /// Create a new key-value store.
+    /// Create a new key-value store and generate user encryption key.
     ///
     /// Uses std::Collections::HashMap as the backing data structure at the
     /// moment.
     pub fn new() -> Self {
+        generate_key();
         let key_value_store = HashMap::new();
         Self { key_value_store }
     }

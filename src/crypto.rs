@@ -2,12 +2,40 @@ use aes_gcm::aead::{Aead, NewAead};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use std::iter::repeat_with;
 
-pub fn generate_key() -> Result<String, &'static str> {
+/// Generate key for AEAD encryption of data.
+///
+/// On creation of the server, a one-time key is generated.
+/// This key is printed out to the screen and will be used in the curl request
+/// to encrypt and decrypt data.
+///
+/// # Examples
+///
+/// ```
+/// use skv::crypto::*;
+///
+/// // Key is generated upon start of the server and given to user. For example,
+/// // this will use a hardcoded key.
+/// let key = String::from(
+///     "606edace3053c4e9222515b7ba0e16e41648c40c56860edb464f813cd53c5726"
+/// );
+///
+/// // When request is made with key in header, server will do something along
+/// // these lines. Apply the same idea to decryption as well.
+/// let data = String::from("super secret data");
+/// let encrypted_data = encrypt(&data, &key);
+/// ```
+pub fn generate_key() {
     let rng = fastrand::Rng::new();
 
     let key: Vec<u8> = repeat_with(|| rng.u8(..)).take(32).collect();
 
-    let data = String::from("fish money");
+    println!(
+        "
+Save this key and keep it secret! It \
+cannot and will not be regenerated.\n{}",
+        hex::encode(key)
+    );
+}
 
     let encrypted_data = crypt(&key, &data, Crypt::Encrypt);
     let decrypted_data =
