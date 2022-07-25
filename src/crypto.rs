@@ -37,18 +37,32 @@ cannot and will not be regenerated.\n{}",
     );
 }
 
-    let encrypted_data = crypt(&key, &data, Crypt::Encrypt);
-    let decrypted_data =
-        crypt(&key, &hex::encode(encrypted_data), Crypt::Decrypt);
+/// Returns ciphertext.
+///
+/// # Panics
+///
+/// ```encrypt()``` can panic if passed bad data.
+///
+/// ```hex::decode()``` can panic if unable to convert key string to byte array.
+pub fn encrypt(
+    plaintext: &String,
+    key: &String,
+) -> Result<String, &'static str> {
+    let key = hex::decode(&key).expect("Failed to decode key to byte array");
+    let key = Key::from_slice(&key);
+    let cipher = Aes256Gcm::new(key);
 
-    assert_eq!(hex::encode(&decrypted_data), data);
+    // I don't want the user to have to have a new nonce (authentication tag)
+    // for every request they make so we are just using a part of their key.
+    // #SecurityExpert
+    let nonce = Nonce::from_slice(&key[4..16]);
 
-    Ok(hex::encode(decrypted_data))
-}
+    let encrypted_text = match cipher.encrypt(nonce, plaintext.as_ref()) {
+        Ok(et) => et,
+        Err(_) => return Err("Failed to encrypt data."),
+    };
 
-pub enum Crypt {
-    Encrypt,
-    Decrypt,
+    Ok(hex::encode(encrypted_text))
 }
 
 /// Encrypt or decrypt text.
