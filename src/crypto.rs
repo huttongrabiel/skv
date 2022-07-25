@@ -65,33 +65,27 @@ pub fn encrypt(
     Ok(hex::encode(encrypted_text))
 }
 
-/// Encrypt or decrypt text.
+/// Returns plaintext.
 ///
-/// Specify whether encryption or decryption by passing Crypt::Encrypt/Decrypt
-/// as the direction parameter.
-pub fn crypt(key: &Vec<u8>, data: &String, direction: Crypt) -> Vec<u8> {
+/// # Panics
+///
+/// ```decrypt()``` will panic if passed bad/wrong data.
+pub fn decrypt(
+    ciphertext: String,
+    key: &Vec<u8>,
+) -> Result<String, &'static str> {
     let key = Key::from_slice(&key);
     let cipher = Aes256Gcm::new(key);
 
-    let rng = fastrand::Rng::new();
+    // I don't want the user to have to have a new nonce (authentication tag)
+    // for every request they make so we are just using a part of their key.
+    let nonce = Nonce::from_slice(&key[4..16]);
 
-    let nonce: Vec<u8> = repeat_with(|| rng.u8(..)).take(12).collect();
-    let nonce = Nonce::from_slice(&nonce);
+    let decrypted_text = cipher
+        .decrypt(nonce, ciphertext.as_ref())
+        .expect("decryption failure");
 
-    let mut crypted_text: Vec<u8> = Vec::new();
-    match direction {
-        Crypt::Encrypt => {
-            crypted_text = cipher
-                .encrypt(nonce, data.as_ref())
-                .expect("encryption failure")
-        }
-        Crypt::Decrypt => {
-            crypted_text = cipher
-                .decrypt(nonce, data.as_ref())
-                .expect("decryption failure!");
-        }
-    }
-    crypted_text
+    Ok(hex::encode(decrypted_text))
 }
 
 #[cfg(test)]
