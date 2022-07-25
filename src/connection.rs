@@ -42,7 +42,7 @@ impl KeyValueStore {
         let pattern =
             Regex::new(r"\w{3,6}\s/\w*\sHTTP/1.1\r\n(\w*\r\n)*").unwrap();
 
-        // FIXME: When hitting localhost:3400/ls in browser, this message is
+        // FIXME: When hitting localhost:3400 in browser, this message is
         // displayed in the terminal, yet the output in the browser is fine. Has
         // to do with the additional information included in the request that
         // the browser sends.
