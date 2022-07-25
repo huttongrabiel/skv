@@ -212,6 +212,31 @@ fn parse_key_from_request(buf: &[u8; 1024]) -> Result<String, &'static str> {
     Ok(String::from_utf8_lossy(key).to_string())
 }
 
+fn parse_encryption_key_from_headers(
+    buf: &[u8; 1024],
+) -> Result<String, &'static str> {
+    let mut headers = buf.split(|byte| *byte == b'\n');
+
+    // Move to header section of HTTP request.
+    headers.next();
+
+    let headers: Vec<&[u8]> = buf.split(|byte| *byte == b'\n').collect();
+
+    // FIXME: I assume there is a much more rust-y way of doing this using
+    // filter().
+    let mut key_header = String::new();
+    for header in &headers {
+        let text = String::from_utf8_lossy(header);
+        let mut text = text.split(|ch| ch == ':');
+        let cur = text.next().unwrap();
+        if cur == String::from("key") {
+            key_header = text.next().unwrap().trim().to_string();
+        }
+    }
+
+    Ok(key_header)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
