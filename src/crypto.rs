@@ -15,16 +15,14 @@ use std::iter::repeat_with;
 ///
 /// // Key is generated upon start of the server and given to user. For example,
 /// // this will use a hardcoded key.
-/// let key = String::from(
-///     "606edace3053c4e9222515b7ba0e16e41648c40c56860edb464f813cd53c5726"
-/// );
+/// let key = generate_key();
 ///
 /// // When request is made with key in header, server will do something along
 /// // these lines. Apply the same idea to decryption as well.
 /// let data = String::from("super secret data");
 /// let encrypted_data = encrypt(&data, &key);
 /// ```
-pub fn generate_key() {
+pub fn generate_key() -> Vec<u8> {
     let rng = fastrand::Rng::new();
 
     let key: Vec<u8> = repeat_with(|| rng.u8(..)).take(32).collect();
@@ -33,8 +31,10 @@ pub fn generate_key() {
         "
 Save this key and keep it secret! It \
 cannot and will not be regenerated.\n{}",
-        hex::encode(key)
+        hex::encode(&key)
     );
+
+    key
 }
 
 /// Returns ciphertext.
@@ -42,14 +42,11 @@ cannot and will not be regenerated.\n{}",
 /// # Panics
 ///
 /// ```encrypt()``` can panic if passed bad data.
-///
-/// ```hex::decode()``` can panic if unable to convert key string to byte array.
 pub fn encrypt(
     plaintext: &String,
-    key: &String,
+    key: &Vec<u8>,
 ) -> Result<String, &'static str> {
-    let key = hex::decode(&key).expect("Failed to decode key to byte array");
-    let key = Key::from_slice(&key);
+    let key = Key::from_slice(key);
     let cipher = Aes256Gcm::new(key);
 
     // I don't want the user to have to have a new nonce (authentication tag)
@@ -57,10 +54,11 @@ pub fn encrypt(
     // #SecurityExpert
     let nonce = Nonce::from_slice(&key[4..16]);
 
-    let encrypted_text = match cipher.encrypt(nonce, plaintext.as_ref()) {
-        Ok(et) => et,
-        Err(_) => return Err("Failed to encrypt data."),
-    };
+    let encrypted_text =
+        match cipher.encrypt(nonce, plaintext.as_bytes().as_ref()) {
+            Ok(et) => et,
+            Err(_) => return Err("Failed to encrypt data."),
+        };
 
     Ok(hex::encode(encrypted_text))
 }
@@ -71,9 +69,10 @@ pub fn encrypt(
 ///
 /// ```decrypt()``` will panic if passed bad/wrong data.
 pub fn decrypt(
-    ciphertext: String,
+    ciphertext: &String,
     key: &Vec<u8>,
 ) -> Result<String, &'static str> {
+    let ciphertext = hex::decode(ciphertext).unwrap();
     let key = Key::from_slice(&key);
     let cipher = Aes256Gcm::new(key);
 
@@ -81,11 +80,12 @@ pub fn decrypt(
     // for every request they make so we are just using a part of their key.
     let nonce = Nonce::from_slice(&key[4..16]);
 
-    let decrypted_text = cipher
-        .decrypt(nonce, ciphertext.as_ref())
-        .expect("decryption failure");
+    let decrypted_text = match cipher.decrypt(nonce, ciphertext.as_ref()) {
+        Ok(dt) => dt,
+        Err(_) => return Err("Failed to decrypt data."),
+    };
 
-    Ok(hex::encode(decrypted_text))
+    Ok(decrypted_text.iter().map(|val| *val as char).collect())
 }
 
 #[cfg(test)]
@@ -95,5 +95,16 @@ mod tests {
     #[test]
     fn test_generate_key() {
         generate_key();
+    }
+
+    #[test]
+    fn test_encrypt_decrypt() {
+        let key = generate_key();
+        let plaintext = String::from("plaintext test");
+        let ciphertext = encrypt(&plaintext, &key).unwrap();
+        eprintln!("ciphertext: {}", ciphertext);
+        let decrypted_text = decrypt(&ciphertext, &key).unwrap();
+        eprintln!("decrypted_text: {}", decrypted_text);
+        assert_eq!(decrypted_text, plaintext);
     }
 }
