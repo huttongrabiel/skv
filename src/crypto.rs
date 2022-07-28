@@ -46,7 +46,11 @@ pub fn encrypt(
     plaintext: &String,
     key: &String,
 ) -> Result<String, &'static str> {
-    let key = hex::decode(&key).unwrap();
+    let key = match hex::decode(&key) {
+        Ok(key) => key,
+        Err(_) => return Err("Hex decode failed to decode key."),
+    };
+
     let key = Key::from_slice(&key);
 
     let cipher = Aes256Gcm::new(key);
@@ -64,17 +68,20 @@ pub fn encrypt(
     Ok(hex::encode(encrypted_text))
 }
 
-/// Returns plaintext.
-///
-/// # Panics
-///
-/// ```decrypt()``` will panic if passed bad/wrong data.
+/// Returns plaintext given encrypted text and encryption key.
 pub fn decrypt(
     ciphertext: &String,
     key: &String,
 ) -> Result<String, &'static str> {
-    let key = hex::decode(key).unwrap();
-    let ciphertext = hex::decode(ciphertext).unwrap();
+    let key = match hex::decode(key) {
+        Ok(key) => key,
+        Err(_) => return Err("Hex decode failed to decode key."),
+    };
+
+    let ciphertext = match hex::decode(ciphertext) {
+        Ok(ct) => ct,
+        Err(_) => return Err("Hex decode failed to decode ciphertext."),
+    };
 
     let key = Key::from_slice(&key);
     let cipher = Aes256Gcm::new(key);
