@@ -22,7 +22,7 @@ use std::iter::repeat_with;
 /// let data = String::from("super secret data");
 /// let encrypted_data = encrypt(&data, &key);
 /// ```
-pub fn generate_key() -> Vec<u8> {
+pub fn generate_key() -> String {
     let rng = fastrand::Rng::new();
 
     let key: Vec<u8> = repeat_with(|| rng.u8(..)).take(32).collect();
@@ -34,7 +34,7 @@ cannot and will not be regenerated.\n{}",
         hex::encode(&key)
     );
 
-    key
+    hex::encode(key)
 }
 
 /// Returns ciphertext.
@@ -44,9 +44,11 @@ cannot and will not be regenerated.\n{}",
 /// ```encrypt()``` can panic if passed bad data.
 pub fn encrypt(
     plaintext: &String,
-    key: &Vec<u8>,
+    key: &String,
 ) -> Result<String, &'static str> {
-    let key = Key::from_slice(key);
+    let key = hex::decode(&key).unwrap();
+    let key = Key::from_slice(&key);
+
     let cipher = Aes256Gcm::new(key);
 
     // I don't want the user to have to have a new nonce (authentication tag)
@@ -54,11 +56,10 @@ pub fn encrypt(
     // #SecurityExpert
     let nonce = Nonce::from_slice(&key[4..16]);
 
-    let encrypted_text =
-        match cipher.encrypt(nonce, plaintext.as_bytes().as_ref()) {
-            Ok(et) => et,
-            Err(_) => return Err("Failed to encrypt data."),
-        };
+    let encrypted_text = match cipher.encrypt(nonce, plaintext.as_ref()) {
+        Ok(et) => et,
+        Err(_) => return Err("Failed to encrypt data."),
+    };
 
     Ok(hex::encode(encrypted_text))
 }
@@ -70,9 +71,11 @@ pub fn encrypt(
 /// ```decrypt()``` will panic if passed bad/wrong data.
 pub fn decrypt(
     ciphertext: &String,
-    key: &Vec<u8>,
+    key: &String,
 ) -> Result<String, &'static str> {
+    let key = hex::decode(key).unwrap();
     let ciphertext = hex::decode(ciphertext).unwrap();
+
     let key = Key::from_slice(&key);
     let cipher = Aes256Gcm::new(key);
 

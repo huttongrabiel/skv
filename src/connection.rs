@@ -1,4 +1,4 @@
-use crate::crypto::generate_key;
+use crate::crypto::{decrypt, encrypt, generate_key};
 use regex::Regex;
 use std::{
     collections::HashMap,
@@ -11,6 +11,7 @@ use std::{
 
 pub struct KeyValueStore {
     key_value_store: HashMap<String, Box<dyn Display + Send>>,
+    encryption_key: String,
 }
 
 impl KeyValueStore {
@@ -19,9 +20,12 @@ impl KeyValueStore {
     /// Uses std::Collections::HashMap as the backing data structure at the
     /// moment.
     pub fn new() -> Self {
-        generate_key();
         let key_value_store = HashMap::new();
-        Self { key_value_store }
+        let encryption_key = generate_key();
+        Self {
+            key_value_store,
+            encryption_key,
+        }
     }
 
     /// Handle a TCP Request to the key-value store.
@@ -97,13 +101,16 @@ impl KeyValueStore {
             return Ok(self.list_keys());
         }
 
-        let mut value: String = match self.key_value_store.get(&key) {
-            Some(val) => format!(
-                "{} \n200 - Success: Value retrieved from key-value store.",
-                val.to_string()
-            ),
+        let encryption_key = parse_encryption_key_from_headers(buf)?;
+
+        let encrypted_key = encrypt(&key, &encryption_key)?;
+
+        let value: String = match self.key_value_store.get(&encrypted_key) {
+            Some(val) => val.to_string(),
             None => format!("Key '{}' not found in key-value store.", key),
         };
+
+        let mut value = decrypt(&value, &self.encryption_key)?;
 
         // If the value that corresponds to the given key is a file, read the
         // file contents and print that to the stream.
@@ -113,7 +120,10 @@ impl KeyValueStore {
             value = fs::read_to_string(&value).unwrap();
         }
 
-        Ok(value)
+        Ok(format!(
+            "{} \n200 - Success: Value retrieved from key-value store.",
+            value
+        ))
     }
 
     fn handle_put_request(
@@ -123,16 +133,18 @@ impl KeyValueStore {
         let key = parse_key_from_request(buf)?;
         let mut value = parse_body_from_request(buf)?;
 
-        // If path is a file, read its contents into a string and store as value
         if Path::exists(Path::new(&value))
             && fs::metadata(&value).unwrap().is_file()
         {
             value = fs::read_to_string(&value).expect("Failed to read file.");
         }
 
+        let encrypted_key = encrypt(&key, &self.encryption_key)?;
+        let encrypted_value = encrypt(&value, &self.encryption_key)?;
+
         match self
             .key_value_store
-            .insert(key.clone(), Box::new(value.clone()))
+            .insert(encrypted_key.clone(), Box::new(encrypted_value.clone()))
         {
             Some(_) => Ok(format!(
                 "Value associated with key, \"{}\", \
@@ -208,8 +220,9 @@ fn parse_key_from_request(buf: &[u8; 1024]) -> Result<String, &'static str> {
     };
 
     let key = &key[1..];
+    let key = String::from_utf8_lossy(key).to_string();
 
-    Ok(String::from_utf8_lossy(key).to_string())
+    Ok(key)
 }
 
 fn parse_encryption_key_from_headers(
@@ -232,6 +245,10 @@ fn parse_encryption_key_from_headers(
         if cur == String::from("key") {
             key_header = text.next().unwrap().trim().to_string();
         }
+    }
+
+    if key_header.is_empty() {
+        return Err("Please provide key header in request!");
     }
 
     Ok(key_header)
