@@ -59,4 +59,7 @@ curl -X DELETE localhost:3400/<key>
 
 # TODO
 - [ ] Data encryption/decryption
-- [ ] CLI (maybe)
+    - [X] Basic encryption
+    - [ ] Write error messages to stream
+    - [ ] Handle incorrect keys with helpful error messages
+- [ ] CLI
