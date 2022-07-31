@@ -65,10 +65,7 @@ impl KeyValueStore {
         let (status_line, body) = if buf.starts_with(get_request) {
             self.handle_get_request(&buf)
         } else if buf.starts_with(put_request) {
-            (
-                "HTTP/1.1 200 OK".to_string(),
-                self.handle_put_request(&buf)?.to_string(),
-            )
+            self.handle_put_request(&buf)
         } else if buf.starts_with(delete_request) {
             (
                 "HTTP/1.1 200 OK".to_string(),
@@ -166,12 +163,29 @@ does not exist or you have an invalid key. Try using the ls command.",
         ("HTTP/1.1 200 OK".to_string(), value)
     }
 
-    fn handle_put_request(
-        &mut self,
-        buf: &[u8; 1024],
-    ) -> Result<String, &'static str> {
-        let key = parse_key_from_request(buf)?;
-        let mut value = parse_body_from_request(buf)?;
+    fn handle_put_request(&mut self, buf: &[u8; 1024]) -> (String, String) {
+        let key = match parse_key_from_request(buf) {
+            Ok(key) => key,
+            Err(_) => {
+                return (
+                    "HTTP/1.1 400 Bad Request".to_string(),
+                    "Key for key-value store not provided!".to_string(),
+                )
+            }
+        };
+
+        let mut value = match parse_body_from_request(buf) {
+            Ok(value) => value,
+            Err(_) => {
+                return (
+                    "HTTP/1.1 400 Bad Request".to_string(),
+                    format!(
+                        "No value provided to store with the key {}!",
+                        &key
+                    ),
+                )
+            }
+        };
 
         if Path::exists(Path::new(&value))
             && fs::metadata(&value).unwrap().is_file()
@@ -179,24 +193,29 @@ does not exist or you have an invalid key. Try using the ls command.",
             value = fs::read_to_string(&value).expect("Failed to read file.");
         }
 
-        let encrypted_key = encrypt(&key, &self.encryption_key)?;
-        let encrypted_value = encrypt(&value, &self.encryption_key)?;
+        let encrypted_key = encrypt(&key, &self.encryption_key).unwrap();
+        let encrypted_value = encrypt(&value, &self.encryption_key).unwrap();
 
         match self
             .key_value_store
             .insert(encrypted_key.clone(), Box::new(encrypted_value.clone()))
         {
-            Some(_) => Ok(format!(
-                "Value associated with key, \"{}\", \
-                        updated to \"{}\", in key-value store.
-                        200 - Success: Value updated.",
-                key, &value
-            )),
-            None => Ok(format!(
-                "[\"{}\", \"{}\"], \n200 - Success: \
+            Some(_) => (
+                "HTTP/1.1 200 OK".to_string(),
+                format!(
+                    "Value associated with key, \"{}\", \
+                            updated to \"{}\", in key-value store.",
+                    key, &value
+                ),
+            ),
+            None => (
+                "HTTP/1.1 200 OK".to_string(),
+                format!(
+                    "[\"{}\", \"{}\"], \n200 - Success: \
                 Entry inserted into key-value store.",
-                key, &value
-            )),
+                    key, &value
+                ),
+            ),
         }
     }
 
