@@ -26,16 +26,21 @@ User can also specify port by doing:
 cargo run -- -p <port>
 ```
 
+Starting the server should generate an encryption key for the user which is used
+to encrypt/decrypt at rest data. **THE KEY MUST BE SAVED BY THE USER**
+
+---
+
 Supported requests are GET, PUT, and DELETE.
 
 GET Request
 ```
-curl -X GET localhost:3400/<key>
+curl -X GET -H "key: <encryption_key>" localhost:3400/<key>
 ```
 
 To list all keys in the key-value store use the 'ls' key.
 ```
-curl -X GET localhost:3400/ls
+curl -X GET -H "key: <encryption_key> localhost:3400/ls
 ```
 
 ---
@@ -50,16 +55,20 @@ Users can also store file contents as values
 curl -X PUT localhost:3400/<key> --data /path/to/file
 ```
 
+*Put requests do **NOT** require an encryption key. The encryption is handled internally.*
+
 ---
 
 DELETE Request (careful with this one ;)...)
 ```
-curl -X DELETE localhost:3400/<key>
+curl -X DELETE -H "key: <encryption_key> localhost:3400/<key>
 ```
 
 # TODO
-- [ ] Data encryption/decryption
+- [X] Data encryption/decryption
     - [X] Basic encryption
-    - [ ] Write error messages to stream
-    - [ ] Handle incorrect keys with helpful error messages
+    - [X] Write error messages to stream
+    - [X] Handle incorrect keys with helpful error messages
+- [ ] Encrypt data that is not at rest
+    - [ ] TLS
 - [ ] CLI
