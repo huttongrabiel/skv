@@ -59,8 +59,12 @@ impl KeyValueStore {
         let delete_request = b"DELETE";
 
         // Default response if request is anything but get, put, or delete.
-        let unknown_request = "This key-value store does not support \
-            the HTTP request you are trying to make.";
+        let unknown_request = (
+            "HTTP/1.1 400 BAD REQUEST".to_string(),
+            "This key-value store does not support \
+            the HTTP request you are trying to make."
+                .to_string(),
+        );
 
         let (status_line, body) = if buf.starts_with(get_request) {
             self.handle_get_request(&buf)
@@ -69,10 +73,7 @@ impl KeyValueStore {
         } else if buf.starts_with(delete_request) {
             self.handle_delete_request(&buf)
         } else {
-            (
-                "HTTP/1.1 400 BAD REQUEST".to_string(),
-                unknown_request.to_string(),
-            )
+            unknown_request
         };
 
         let response = format!(
