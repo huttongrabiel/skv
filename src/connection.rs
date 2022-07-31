@@ -67,10 +67,7 @@ impl KeyValueStore {
         } else if buf.starts_with(put_request) {
             self.handle_put_request(&buf)
         } else if buf.starts_with(delete_request) {
-            (
-                "HTTP/1.1 200 OK".to_string(),
-                self.handle_delete_request(&buf)?.to_string(),
-            )
+            self.handle_delete_request(&buf)
         } else {
             (
                 "HTTP/1.1 400 BAD REQUEST".to_string(),
@@ -219,19 +216,49 @@ does not exist or you have an invalid key. Try using the ls command.",
         }
     }
 
-    fn handle_delete_request(
-        &mut self,
-        buf: &[u8; 1024],
-    ) -> Result<String, &'static str> {
-        let key = parse_key_from_request(buf)?;
+    fn handle_delete_request(&mut self, buf: &[u8; 1024]) -> (String, String) {
+        let key = match parse_key_from_request(buf) {
+            Ok(key) => key,
+            Err(_) => {
+                return (
+                    "HTTP/1.1 400 Bad Request".to_string(),
+                    "Key for key-value store not provided!".to_string(),
+                )
+            }
+        };
 
-        match self.key_value_store.remove(&key) {
-            Some(val) => Ok(format!(
-                "Key-value pair, [{}, {}], removed from key-value store.\
-                \n200 - Success: Entry deleted from key-value store.",
-                key, val
-            )),
-            None => Ok(format!("Key '{}' not found in key-value store.", key)),
+        let encryption_key = match parse_encryption_key_from_headers(buf) {
+            Ok(key) => key,
+            Err(_) => {
+                return (
+                    "HTTP/1.1 400 Bad Request".to_string(),
+                    "User encryption key not provided in request headers."
+                        .to_string(),
+                )
+            }
+        };
+
+        let encrypted_key = match encrypt(&key, &encryption_key) {
+            Ok(ek) => ek,
+            Err(_) => return (
+                "HTTP/1.1 400 Bad Request".to_string(),
+                "Failed to encrypt key for lookup, check your encryption key!"
+                    .to_string(),
+            ),
+        };
+
+        match self.key_value_store.remove(&encrypted_key) {
+            Some(val) => (
+                "HTTP/1.1 200 OK".to_string(),
+                format!(
+                    "Key-value pair, [{}, {}], removed from key-value store.",
+                    key, val
+                ),
+            ),
+            None => (
+                "HTTP/1.1 404 NOT FOUND".to_string(),
+                format!("Key '{}' not found in key-value store.", key),
+            ),
         }
     }
 
