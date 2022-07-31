@@ -75,7 +75,7 @@ pub fn decrypt(
 ) -> Result<String, &'static str> {
     let key = match hex::decode(key) {
         Ok(key) => key,
-        Err(_) => return Err("Hex decode failed to decode key."),
+        Err(_) => return Err("Invalid key format!"),
     };
 
     let ciphertext = match hex::decode(ciphertext) {
@@ -92,7 +92,7 @@ pub fn decrypt(
 
     let decrypted_text = match cipher.decrypt(nonce, ciphertext.as_ref()) {
         Ok(dt) => dt,
-        Err(_) => return Err("Failed to decrypt data."),
+        Err(_) => return Err("Failed to decrypt data! Check your key."),
     };
 
     Ok(decrypted_text.iter().map(|val| *val as char).collect())
