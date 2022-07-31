@@ -248,10 +248,11 @@ does not exist or you have an invalid key. Try using the ls command.",
         };
 
         match self.key_value_store.remove(&encrypted_key) {
+            // FIXME: Print the non-encrypted value to stream.
             Some(val) => (
                 "HTTP/1.1 200 OK".to_string(),
                 format!(
-                    "Key-value pair, [{}, {}], removed from key-value store.",
+                    "Key-value pair [\"{}\", \"{}\"], removed from key-value store.",
                     key, val
                 ),
             ),
