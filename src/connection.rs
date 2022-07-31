@@ -63,13 +63,22 @@ impl KeyValueStore {
             the HTTP request you are trying to make.";
 
         let (status_line, body) = if buf.starts_with(get_request) {
-            ("HTTP/1.1 200 OK", self.handle_get_request(&buf)?)
+            self.handle_get_request(&buf)
         } else if buf.starts_with(put_request) {
-            ("HTTP/1.1 200 OK", self.handle_put_request(&buf)?)
+            (
+                "HTTP/1.1 200 OK".to_string(),
+                self.handle_put_request(&buf)?.to_string(),
+            )
         } else if buf.starts_with(delete_request) {
-            ("HTTP/1.1 200 OK", self.handle_delete_request(&buf)?)
+            (
+                "HTTP/1.1 200 OK".to_string(),
+                self.handle_delete_request(&buf)?.to_string(),
+            )
         } else {
-            ("HTTP/1.1 404 NOT FOUND", unknown_request.to_string())
+            (
+                "HTTP/1.1 400 BAD REQUEST".to_string(),
+                unknown_request.to_string(),
+            )
         };
 
         let response = format!(
@@ -91,26 +100,60 @@ impl KeyValueStore {
         Ok(())
     }
 
-    fn handle_get_request(
-        &mut self,
-        buf: &[u8; 1024],
-    ) -> Result<String, &'static str> {
-        let key = parse_key_from_request(buf)?;
+    fn handle_get_request(&mut self, buf: &[u8; 1024]) -> (String, String) {
+        let key = match parse_key_from_request(buf) {
+            Ok(key) => key,
+            Err(_) => {
+                return (
+                    "HTTP/1.1 400 Bad Request".to_string(),
+                    "Key for key-value store not provided!".to_string(),
+                )
+            }
+        };
+
+        let encryption_key = match parse_encryption_key_from_headers(buf) {
+            Ok(key) => key,
+            Err(_) => {
+                return (
+                    "HTTP/1.1 400 Bad Request".to_string(),
+                    "User encryption key not provided in request headers."
+                        .to_string(),
+                )
+            }
+        };
 
         if key == "ls" {
-            return Ok(self.list_keys());
+            return (
+                "HTTP/1.1 200 OK".to_string(),
+                self.list_keys(encryption_key),
+            );
         }
 
-        let encryption_key = parse_encryption_key_from_headers(buf)?;
-
-        let encrypted_key = encrypt(&key, &encryption_key)?;
+        let encrypted_key = match encrypt(&key, &encryption_key) {
+            Ok(ek) => ek,
+            Err(_) => return (
+                "HTTP/1.1 400 Bad Request".to_string(),
+                "Failed to encrypt key for lookup, check your encryption key!"
+                    .to_string(),
+            ),
+        };
 
         let value: String = match self.key_value_store.get(&encrypted_key) {
             Some(val) => val.to_string(),
-            None => format!("Key '{}' not found in key-value store.", key),
+            None => {
+                return (
+                    "HTTP/1.1 404 NOT FOUND".to_string(),
+                    format!(
+                        "\
+Key '{}' not found in key-value store. Either the data \
+does not exist or you have an invalid key. Try using the ls command.",
+                        key
+                    ),
+                )
+            }
         };
 
-        let mut value = decrypt(&value, &self.encryption_key)?;
+        let mut value = decrypt(&value, &self.encryption_key).unwrap();
 
         // If the value that corresponds to the given key is a file, read the
         // file contents and print that to the stream.
@@ -120,10 +163,7 @@ impl KeyValueStore {
             value = fs::read_to_string(&value).unwrap();
         }
 
-        Ok(format!(
-            "{} \n200 - Success: Value retrieved from key-value store.",
-            value
-        ))
+        ("HTTP/1.1 200 OK".to_string(), value)
     }
 
     fn handle_put_request(
@@ -176,9 +216,16 @@ impl KeyValueStore {
         }
     }
 
-    fn list_keys(&self) -> String {
+    fn list_keys(&self, user_provided_encryption_key: String) -> String {
         let mut keys = String::new();
         for (key, _) in &self.key_value_store {
+            let key = match decrypt(key, &user_provided_encryption_key) {
+                Ok(key) => key,
+                Err(_) => {
+                    return "Decryption failed due to invalid encryption key."
+                        .to_string()
+                }
+            };
             keys.push_str(format!("{}\n", key).as_str());
         }
         keys
