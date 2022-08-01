@@ -16,11 +16,13 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    /// Start the server. To specify port see 'skv help start'.
     Start {
         /// Specify port on localhost to run skv server.
         #[clap(value_parser, default_value = "3400")]
         port: String,
     },
+    /// Store a key-value pair.
     PUT {
         /// Key used for look up in the key-value store.
         #[clap(value_parser)]
@@ -29,14 +31,16 @@ pub enum Commands {
         #[clap(short, long, value_parser)]
         value: String,
     },
+    /// Fetch a key-value pair.
     GET {
         /// Key used for look up in the key-value store.
         #[clap(value_parser)]
         key: String,
-        /// Information associated with key.
+        /// Encryption key provided to user at time of server start.
         #[clap(value_parser)]
         encryption_key: String,
     },
+    /// Delete a key-value pair.
     DELETE {
         /// Key used for look up in the key-value store.
         #[clap(value_parser)]
@@ -45,6 +49,7 @@ pub enum Commands {
         #[clap(value_parser)]
         encryption_key: String,
     },
+    /// List all keys in the store.
     ListKeys {
         /// Encryption key provided to user at time of server start.
         #[clap(value_parser)]
