@@ -11,9 +11,19 @@ use std::{
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Cli::parse();
 
+    // TODO: Figure out how to handle HTTP requests done through the CLI.
     match &args.command {
         Commands::Start { port } => start_server(port.to_string())?,
-        _ => eprintln!("whoopty doo!"),
+        Commands::PUT { key, value } => {}
+        Commands::GET {
+            key,
+            encryption_key,
+        } => {}
+        Commands::DELETE {
+            key,
+            encryption_key,
+        } => {}
+        Commands::ListKeys { encryption_key } => {}
     }
 
     Ok(())
