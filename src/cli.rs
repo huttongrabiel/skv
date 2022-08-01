@@ -25,7 +25,7 @@ pub enum Commands {
     /// Store a key-value pair.
     PUT {
         /// Key used for look up in the key-value store.
-        #[clap(value_parser)]
+        #[clap(short, long, value_parser)]
         key: String,
         /// Information associated with key.
         #[clap(short, long, value_parser)]
@@ -34,25 +34,25 @@ pub enum Commands {
     /// Fetch a key-value pair.
     GET {
         /// Key used for look up in the key-value store.
-        #[clap(value_parser)]
+        #[clap(short, long, value_parser)]
         key: String,
         /// Encryption key provided to user at time of server start.
-        #[clap(value_parser)]
+        #[clap(short, long, value_parser)]
         encryption_key: String,
     },
     /// Delete a key-value pair.
     DELETE {
         /// Key used for look up in the key-value store.
-        #[clap(value_parser)]
+        #[clap(short, long, value_parser)]
         key: String,
         /// Encryption key provided to user at time of server start.
-        #[clap(value_parser)]
+        #[clap(short, long, value_parser)]
         encryption_key: String,
     },
     /// List all keys in the store.
     ListKeys {
         /// Encryption key provided to user at time of server start.
-        #[clap(value_parser)]
+        #[clap(short, long, value_parser)]
         encryption_key: String,
     },
 }
