@@ -1,4 +1,5 @@
 use clap::Parser;
+use skv::cli::{Cli, Commands};
 use skv::connection::KeyValueStore;
 use skv::thread::ThreadPool;
 use std::{
@@ -8,15 +9,21 @@ use std::{
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let args = Args::parse();
-    let listener = TcpListener::bind(format!("localhost:{}", args.port))
-        .expect(
-            format!(
-                "Failed to bind to localhost (127.0.0.1) on port {}",
-                args.port,
-            )
+    let args = Cli::parse();
+
+    match &args.command {
+        Commands::Start { port } => start_server(port.to_string())?,
+        _ => eprintln!("whoopty doo!"),
+    }
+
+    Ok(())
+}
+
+fn start_server(port: String) -> Result<(), Box<dyn Error>> {
+    let listener = TcpListener::bind(format!("localhost:{}", port)).expect(
+        format!("Failed to bind to localhost (127.0.0.1) on port {}", port,)
             .as_str(),
-        );
+    );
 
     let key_value_store = Arc::new(Mutex::new(KeyValueStore::new()));
 
@@ -35,13 +42,4 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
-}
-
-/// A simple key-value (skv) store.
-#[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
-struct Args {
-    /// Specify port on localhost to run skv server.
-    #[clap(short, long, value_parser, default_value = "3400")]
-    port: String,
 }
