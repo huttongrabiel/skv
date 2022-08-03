@@ -77,7 +77,6 @@ impl Worker {
 
             match message {
                 Message::NewJob(job) => {
-                    eprintln!("Worker {}, got a job!", id);
                     job();
                 }
                 Message::Terminate => {
