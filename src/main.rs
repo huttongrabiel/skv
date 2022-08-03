@@ -1,5 +1,4 @@
 use clap::Parser;
-use skv::cli::{Cli, Commands};
 use skv::connection::KeyValueStore;
 use skv::thread::ThreadPool;
 use std::{
@@ -9,31 +8,16 @@ use std::{
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let args = Cli::parse();
+    let args = Args::parse();
 
-    // TODO: Figure out how to handle HTTP requests done through the CLI.
-    match &args.command {
-        Commands::Start { port } => start_server(port.to_string())?,
-        Commands::PUT { key, value } => {}
-        Commands::GET {
-            key,
-            encryption_key,
-        } => {}
-        Commands::DELETE {
-            key,
-            encryption_key,
-        } => {}
-        Commands::ListKeys { encryption_key } => {}
-    }
-
-    Ok(())
-}
-
-fn start_server(port: String) -> Result<(), Box<dyn Error>> {
-    let listener = TcpListener::bind(format!("localhost:{}", port)).expect(
-        format!("Failed to bind to localhost (127.0.0.1) on port {}", port,)
+    let listener = TcpListener::bind(format!("localhost:{}", args.port))
+        .expect(
+            format!(
+                "Failed to bind to localhost (127.0.0.1) on port {}",
+                args.port,
+            )
             .as_str(),
-    );
+        );
 
     let key_value_store = Arc::new(Mutex::new(KeyValueStore::new()));
 
@@ -52,4 +36,13 @@ fn start_server(port: String) -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
+}
+
+/// A simple key-value (skv) store.
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+pub struct Args {
+    /// Specify port on localhost to run skv server.
+    #[clap(short, long, value_parser, default_value = "3400")]
+    pub port: String,
 }
