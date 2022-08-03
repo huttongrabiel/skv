@@ -6,62 +6,44 @@ A (VERY) simple networked key-value store.
 
 ---
 
-# Usage
+# Installation
 
-Clone the repository and cd into the directory.
+Clone the repository, cd into the directory, and build the project.
 
 ```
 git clone https://github.com/huttongrabiel/skv.git
+
+cd path/to/skvrepo
+
+cargo build --release
 ```
 
-Start the server. It will run on localhost (127.0.0.1) on port 3400.
+# Usage
 
-```
-cargo run
-```
+```bash
 
-User can also specify port by doing:
+# Start the server. It will run on localhost (127.0.0.1) on port 3400.
+./target/release/skv -p <port> # [default 3400] -p is optional
 
-```
-cargo run -- -p <port>
-```
+# SAVE THE ENCRYPTION KEY GENERATED AT SERVER START. Message looks as such:
+"Save this key and keep it secret! It cannot and will not be regenerated.
+9be2b1462a8364d51b1dfb66c7a729101bf3e7ac196c68f22c8af83918f605ab"
 
-Starting the server should generate an encryption key for the user which is used
-to encrypt/decrypt at rest data. **THE KEY MUST BE SAVED BY THE USER**
-
----
-
-Supported requests are GET, PUT, and DELETE.
-
-GET Request
-```
+# GET Request
 curl -X GET -H "key: <encryption_key>" localhost:3400/<key>
-```
 
-To list all keys in the key-value store use the 'ls' key.
-```
-curl -X GET -H "key: <encryption_key> localhost:3400/ls
-```
-
----
-
-PUT Request
-```
+# PUT Request. No encryption key required.
 curl -X PUT localhost:3400/<key> --data <value>
-```
 
-Users can also store file contents as values
-```
+# DELETE Request (careful with this one ;)...)
+curl -X DELETE -H "key: <encryption_key>" localhost:3400/<key>
+
+# To list all keys in the key-value store use the 'ls' key.
+curl -X GET -H "key: <encryption_key>" localhost:3400/ls
+
+# Users can also store file contents as values
 curl -X PUT localhost:3400/<key> --data /path/to/file
-```
 
-*Put requests do **NOT** require an encryption key. The encryption is handled internally.*
-
----
-
-DELETE Request (careful with this one ;)...)
-```
-curl -X DELETE -H "key: <encryption_key> localhost:3400/<key>
 ```
 
 # TODO
@@ -71,4 +53,3 @@ curl -X DELETE -H "key: <encryption_key> localhost:3400/<key>
     - [X] Handle incorrect keys with helpful error messages
 - [ ] Encrypt data that is not at rest
     - [ ] TLS
-- [ ] CLI
