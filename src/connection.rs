@@ -280,6 +280,12 @@ does not exist or you have an invalid key. Try using the ls command.",
     }
 }
 
+impl Default for KeyValueStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 fn parse_body_from_request(buf: &[u8; 1024]) -> Result<String, &'static str> {
     let body = match buf.split(|byte| *byte == b'\n').last() {
         Some(body) => body,
