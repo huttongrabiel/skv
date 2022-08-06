@@ -11,13 +11,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
     let listener = TcpListener::bind(format!("localhost:{}", args.port))
-        .expect(
-            format!(
+        .unwrap_or_else(|_| {
+            panic!(
                 "Failed to bind to localhost (127.0.0.1) on port {}",
                 args.port,
             )
-            .as_str(),
-        );
+        });
 
     let key_value_store = Arc::new(Mutex::new(KeyValueStore::new()));
 

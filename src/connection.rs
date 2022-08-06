@@ -196,7 +196,7 @@ does not exist or you have an invalid key. Try using the ls command.",
 
         match self
             .key_value_store
-            .insert(encrypted_key.clone(), Box::new(encrypted_value.clone()))
+            .insert(encrypted_key, Box::new(encrypted_value))
         {
             Some(_) => (
                 "HTTP/1.1 200 OK".to_string(),
@@ -266,7 +266,7 @@ does not exist or you have an invalid key. Try using the ls command.",
 
     fn list_keys(&self, user_provided_encryption_key: String) -> String {
         let mut keys = String::new();
-        for (key, _) in &self.key_value_store {
+        for key in self.key_value_store.keys() {
             let key = match decrypt(key, &user_provided_encryption_key) {
                 Ok(key) => key,
                 Err(_) => {
@@ -343,7 +343,7 @@ fn parse_encryption_key_from_headers(
         let text = String::from_utf8_lossy(header);
         let mut text = text.split(|ch| ch == ':');
         let cur = text.next().unwrap();
-        if cur == String::from("key") {
+        if cur == "key" {
             key_header = text.next().unwrap().trim().to_string();
         }
     }
