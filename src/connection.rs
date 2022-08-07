@@ -254,7 +254,7 @@ does not exist or you have an invalid key. Try using the ls command.",
                 "HTTP/1.1 200 OK".to_string(),
                 format!(
                     "Key-value pair [\"{}\", \"{}\"], removed from key-value store.",
-                    key, val
+                    key, decrypt(&val.to_string(), &encryption_key).unwrap()
                 ),
             ),
             None => (
