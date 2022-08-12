@@ -71,9 +71,9 @@ pub fn encrypt(
 /// Returns plaintext given encrypted text and encryption key.
 pub fn decrypt(
     ciphertext: &String,
-    key: &String,
+    encryption_key: &String,
 ) -> Result<String, &'static str> {
-    let key = match hex::decode(key) {
+    let encryption_key = match hex::decode(encryption_key) {
         Ok(key) => key,
         Err(_) => return Err("Invalid key format!"),
     };
@@ -83,7 +83,7 @@ pub fn decrypt(
         Err(_) => return Err("Hex decode failed to decode ciphertext."),
     };
 
-    let key = Key::from_slice(&key);
+    let key = Key::from_slice(&encryption_key);
     let cipher = Aes256Gcm::new(key);
 
     // I don't want the user to have to have a new nonce (authentication tag)
