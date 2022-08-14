@@ -286,7 +286,7 @@ does not exist or you have an invalid key. Try using the ls command.",
             };
             keys.push_str(format!("{}\n", key).as_str());
         }
-        keys
+        keys.trim_end().to_string()
     }
 
     // FIXME: This bit of code is unfortunately slow. Because we encrypt
