@@ -95,7 +95,7 @@ pub fn decrypt(
     assert!(nonce_start_pos < ciphertext_bytes.len());
 
     let nonce = &ciphertext_bytes[nonce_start_pos..];
-    let nonce = Nonce::from_slice(&nonce);
+    let nonce = Nonce::from_slice(nonce);
 
     let ciphertext = &ciphertext_bytes[..nonce_start_pos];
 

@@ -162,7 +162,7 @@ does not exist or you have an invalid key. Try using the ls command.",
             }
         };
 
-        let mut value = decrypt(&value, &self.encryption_key).unwrap();
+        let mut value = decrypt(value, &self.encryption_key).unwrap();
 
         // If the value that corresponds to the given key is a file, read the
         // file contents and print that to the stream.
@@ -309,7 +309,7 @@ does not exist or you have an invalid key. Try using the ls command.",
         let mut found_object: Option<DataObject> = None;
         for object in self.key_value_store.keys() {
             // FIXME: Handle any decryption error.
-            let decrypted_key = decrypt(object, &user_provided_encryption_key)?;
+            let decrypted_key = decrypt(object, user_provided_encryption_key)?;
 
             if decrypted_key == *key {
                 found_object = Some(object.clone());
@@ -317,10 +317,10 @@ does not exist or you have an invalid key. Try using the ls command.",
         }
 
         if found_object.is_some() {
-            Ok(found_object)
-        } else {
-            return Err("Key not found in key-value store.");
+            return Ok(found_object);
         }
+
+        Err("Key not found in key-value store.")
     }
 }
 
