@@ -20,6 +20,8 @@ cargo build --release
 
 # Usage
 
+*For user friendly usage see [skv_talk](https://github.com/huttongrabiel/skv_talk).*
+
 ```bash
 
 # Start the server. It will run on localhost (127.0.0.1) on port 3400.
