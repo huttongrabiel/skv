@@ -138,27 +138,14 @@ impl KeyValueStore {
             );
         }
 
-        let mut found_object: Option<DataObject> = None;
-
-        // FIXME: This bit of code is unfortunately slow. Because we encrypt
-        // each data object with a nonce, the encryptions are not replicable.
-        // That is a good thing in terms of replay attacks, however it forces us
-        // to look through each value in the hashmap, decrypt it, and compare it
-        // against what the user is looking for. This is slow O(n) code.
-        //
-        // The tradeoff between speed and security needs to be considered.
-        // Previously, because each encryption was done only with the encryption
-        // key, we could recompute the encryption and compare it, but now,
-        // because each is done with the nonce, we have no way of recomputing
-        // that encryption.
-        for object in self.key_value_store.keys() {
-            // FIXME: Handle any decryption error.
-            let decrypted_key = decrypt(object, &encryption_key).unwrap();
-
-            if decrypted_key == key {
-                found_object = Some(object.clone());
+        let found_object = match self.find_object(&encryption_key, &key) {
+            Ok(fo) => fo,
+            Err(e) => {
+                return ("HTTP/1.1 400 Bad Request".to_string(), e.to_string())
             }
-        }
+        };
+
+        assert!(found_object.is_some());
 
         let value = match self.key_value_store.get(&found_object.unwrap()) {
             Some(val) => val,
@@ -263,28 +250,17 @@ does not exist or you have an invalid key. Try using the ls command.",
             }
         };
 
-        // TODO: Use the err response here for below decrypt() function.
-        //        let encrypted_key = match encrypt(&key, &encryption_key) {
-        //            Ok(ek) => ek,
-        //            Err(_) => return (
-        //                "HTTP/1.1 400 Bad Request".to_string(),
-        //                "Failed to encrypt key for lookup, check your encryption key!"
-        //                    .to_string(),
-        //            ),
-        //        };
-
-        let mut found_object: Option<DataObject> = None;
-
-        // FIXME: See long above fixme about this code.
-        // FIXME: Export this code to a function.
-        for object in self.key_value_store.keys() {
-            // FIXME: Handle any decryption error.
-            let decrypted_key = decrypt(object, &encryption_key).unwrap();
-
-            if decrypted_key == key {
-                found_object = Some(object.clone());
+        let found_object = match self.find_object(&encryption_key, &key) {
+            Ok(fo) => fo,
+            Err(e) => {
+                return ("HTTP/1.1 404 NOT FOUND".to_string(), e.to_string())
             }
-        }
+        };
+
+        // This should never fail. find_object should return an error if it
+        // doesn't find anything which means this code will never be run if
+        // found_object is None.
+        assert!(found_object.is_some());
 
         match self.key_value_store.remove(&found_object.unwrap()) {
             // FIXME: Print the non-encrypted value to stream.
@@ -312,6 +288,39 @@ does not exist or you have an invalid key. Try using the ls command.",
             keys.push_str(format!("{}\n", key).as_str());
         }
         keys
+    }
+
+    // FIXME: This bit of code is unfortunately slow. Because we encrypt
+    // each data object with a nonce, the encryptions are not replicable.
+    // That is a good thing in terms of replay attacks, however it forces us
+    // to look through each value in the hashmap, decrypt it, and compare it
+    // against what the user is looking for. This is slow O(n) code.
+    //
+    // The tradeoff between speed and security needs to be considered.
+    // Previously, because each encryption was done only with the encryption
+    // key, we could recompute the encryption and compare it, but now,
+    // because each is done with the nonce, we have no way of recomputing
+    // that encryption.
+    fn find_object(
+        &self,
+        user_provided_encryption_key: &String,
+        key: &String,
+    ) -> Result<Option<DataObject>, &'static str> {
+        let mut found_object: Option<DataObject> = None;
+        for object in self.key_value_store.keys() {
+            // FIXME: Handle any decryption error.
+            let decrypted_key = decrypt(object, &user_provided_encryption_key)?;
+
+            if decrypted_key == *key {
+                found_object = Some(object.clone());
+            }
+        }
+
+        if found_object.is_some() {
+            Ok(found_object)
+        } else {
+            return Err("Key not found in key-value store.");
+        }
     }
 }
 
