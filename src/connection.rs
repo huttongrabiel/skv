@@ -263,7 +263,6 @@ does not exist or you have an invalid key. Try using the ls command.",
         assert!(found_object.is_some());
 
         match self.key_value_store.remove(&found_object.unwrap()) {
-            // FIXME: Print the non-encrypted value to stream.
             Some(val) => (
                 "HTTP/1.1 200 OK".to_string(),
                 format!(
