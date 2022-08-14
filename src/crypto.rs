@@ -1,3 +1,4 @@
+use crate::connection::DataObject;
 use aes_gcm::aead::{Aead, NewAead};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use std::iter::repeat_with;
@@ -45,7 +46,7 @@ cannot and will not be regenerated.\n{}",
 pub fn encrypt(
     plaintext: &String,
     key: &String,
-) -> Result<String, &'static str> {
+) -> Result<DataObject, &'static str> {
     let key = match hex::decode(&key) {
         Ok(key) => key,
         Err(_) => return Err("Hex decode failed to decode key."),
@@ -55,22 +56,26 @@ pub fn encrypt(
 
     let cipher = Aes256Gcm::new(key);
 
-    // I don't want the user to have to have a new nonce (authentication tag)
-    // for every request they make so we are just using a part of their key.
-    // #SecurityExpert
-    let nonce = Nonce::from_slice(&key[4..16]);
+    let rng = fastrand::Rng::new();
 
-    let encrypted_text = match cipher.encrypt(nonce, plaintext.as_ref()) {
+    let nonce_buf: Vec<u8> = repeat_with(|| rng.u8(..)).take(12).collect();
+    let nonce = Nonce::from_slice(&nonce_buf);
+
+    assert_eq!(nonce.len(), nonce_buf.len());
+
+    let mut ciphertext = match cipher.encrypt(nonce, plaintext.as_ref()) {
         Ok(et) => et,
         Err(_) => return Err("Failed to encrypt data."),
     };
 
-    Ok(hex::encode(encrypted_text))
+    ciphertext.append(&mut nonce_buf.clone());
+
+    Ok(DataObject::new(hex::encode(ciphertext), nonce.len()))
 }
 
 /// Returns plaintext given encrypted text and encryption key.
 pub fn decrypt(
-    ciphertext: &String,
+    data_object: &DataObject,
     encryption_key: &String,
 ) -> Result<String, &'static str> {
     let encryption_key = match hex::decode(encryption_key) {
@@ -78,24 +83,31 @@ pub fn decrypt(
         Err(_) => return Err("Invalid key format!"),
     };
 
-    let ciphertext = match hex::decode(ciphertext) {
+    let ciphertext_bytes = match hex::decode(&data_object.ciphertext) {
         Ok(ct) => ct,
         Err(_) => return Err("Hex decode failed to decode ciphertext."),
     };
 
-    let key = Key::from_slice(&encryption_key);
-    let cipher = Aes256Gcm::new(key);
+    let encryption_key = Key::from_slice(&encryption_key);
+    let cipher = Aes256Gcm::new(encryption_key);
 
-    // I don't want the user to have to have a new nonce (authentication tag)
-    // for every request they make so we are just using a part of their key.
-    let nonce = Nonce::from_slice(&key[4..16]);
+    let nonce_start_pos = ciphertext_bytes.len() - data_object.nonce_size;
+    assert!(nonce_start_pos < ciphertext_bytes.len());
+
+    let nonce = &ciphertext_bytes[nonce_start_pos..];
+    let nonce = Nonce::from_slice(&nonce);
+
+    let ciphertext = &ciphertext_bytes[..nonce_start_pos];
 
     let decrypted_text = match cipher.decrypt(nonce, ciphertext.as_ref()) {
         Ok(dt) => dt,
         Err(_) => return Err("Failed to decrypt data! Check your key."),
     };
 
-    Ok(decrypted_text.iter().map(|val| *val as char).collect())
+    let decrypted_text: String =
+        decrypted_text.iter().map(|val| *val as char).collect();
+
+    Ok(decrypted_text)
 }
 
 #[cfg(test)]
@@ -111,9 +123,9 @@ mod tests {
     fn test_encrypt_decrypt() {
         let key = generate_key();
         let plaintext = String::from("plaintext test");
-        let ciphertext = encrypt(&plaintext, &key).unwrap();
-        eprintln!("ciphertext: {}", ciphertext);
-        let decrypted_text = decrypt(&ciphertext, &key).unwrap();
+        let encrypted_data = encrypt(&plaintext, &key).unwrap();
+        eprintln!("ciphertext: {}", encrypted_data.ciphertext);
+        let decrypted_text = decrypt(&encrypted_data, &key).unwrap();
         eprintln!("decrypted_text: {}", decrypted_text);
         assert_eq!(decrypted_text, plaintext);
     }

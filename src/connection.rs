@@ -2,15 +2,29 @@ use crate::crypto::{decrypt, encrypt, generate_key};
 use regex::Regex;
 use std::{
     collections::HashMap,
-    fmt::Display,
     fs,
     io::{Read, Write},
     net::TcpStream,
     path::Path,
 };
 
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub struct DataObject {
+    pub ciphertext: String,
+    pub nonce_size: usize,
+}
+
+impl DataObject {
+    pub fn new(ciphertext: String, nonce_size: usize) -> Self {
+        Self {
+            ciphertext,
+            nonce_size,
+        }
+    }
+}
+
 pub struct KeyValueStore {
-    key_value_store: HashMap<String, Box<dyn Display + Send>>,
+    key_value_store: HashMap<DataObject, DataObject>,
     encryption_key: String,
 }
 
@@ -124,17 +138,30 @@ impl KeyValueStore {
             );
         }
 
-        let encrypted_key = match encrypt(&key, &encryption_key) {
-            Ok(ek) => ek,
-            Err(_) => return (
-                "HTTP/1.1 400 Bad Request".to_string(),
-                "Failed to encrypt key for lookup, check your encryption key!"
-                    .to_string(),
-            ),
-        };
+        let mut found_object: Option<DataObject> = None;
 
-        let value: String = match self.key_value_store.get(&encrypted_key) {
-            Some(val) => val.to_string(),
+        // FIXME: This bit of code is unfortunately slow. Because we encrypt
+        // each data object with a nonce, the encryptions are not replicable.
+        // That is a good thing in terms of replay attacks, however it forces us
+        // to look through each value in the hashmap, decrypt it, and compare it
+        // against what the user is looking for. This is slow O(n) code.
+        //
+        // The tradeoff between speed and security needs to be considered.
+        // Previously, because each encryption was done only with the encryption
+        // key, we could recompute the encryption and compare it, but now,
+        // because each is done with the nonce, we have no way of recomputing
+        // that encryption.
+        for object in self.key_value_store.keys() {
+            // FIXME: Handle any decryption error.
+            let decrypted_key = decrypt(object, &encryption_key).unwrap();
+
+            if decrypted_key == key {
+                found_object = Some(object.clone());
+            }
+        }
+
+        let value = match self.key_value_store.get(&found_object.unwrap()) {
+            Some(val) => val,
             None => {
                 return (
                     "HTTP/1.1 404 NOT FOUND".to_string(),
@@ -194,10 +221,7 @@ does not exist or you have an invalid key. Try using the ls command.",
         let encrypted_key = encrypt(&key, &self.encryption_key).unwrap();
         let encrypted_value = encrypt(&value, &self.encryption_key).unwrap();
 
-        match self
-            .key_value_store
-            .insert(encrypted_key, Box::new(encrypted_value))
-        {
+        match self.key_value_store.insert(encrypted_key, encrypted_value) {
             Some(_) => (
                 "HTTP/1.1 200 OK".to_string(),
                 format!(
@@ -239,22 +263,36 @@ does not exist or you have an invalid key. Try using the ls command.",
             }
         };
 
-        let encrypted_key = match encrypt(&key, &encryption_key) {
-            Ok(ek) => ek,
-            Err(_) => return (
-                "HTTP/1.1 400 Bad Request".to_string(),
-                "Failed to encrypt key for lookup, check your encryption key!"
-                    .to_string(),
-            ),
-        };
+        // TODO: Use the err response here for below decrypt() function.
+        //        let encrypted_key = match encrypt(&key, &encryption_key) {
+        //            Ok(ek) => ek,
+        //            Err(_) => return (
+        //                "HTTP/1.1 400 Bad Request".to_string(),
+        //                "Failed to encrypt key for lookup, check your encryption key!"
+        //                    .to_string(),
+        //            ),
+        //        };
 
-        match self.key_value_store.remove(&encrypted_key) {
+        let mut found_object: Option<DataObject> = None;
+
+        // FIXME: See long above fixme about this code.
+        // FIXME: Export this code to a function.
+        for object in self.key_value_store.keys() {
+            // FIXME: Handle any decryption error.
+            let decrypted_key = decrypt(object, &encryption_key).unwrap();
+
+            if decrypted_key == key {
+                found_object = Some(object.clone());
+            }
+        }
+
+        match self.key_value_store.remove(&found_object.unwrap()) {
             // FIXME: Print the non-encrypted value to stream.
             Some(val) => (
                 "HTTP/1.1 200 OK".to_string(),
                 format!(
                     "Key-value pair [\"{}\", \"{}\"], removed from key-value store.",
-                    key, decrypt(&val.to_string(), &encryption_key).unwrap()
+                    key, decrypt(&val, &encryption_key).unwrap()
                 ),
             ),
             None => (
@@ -269,10 +307,7 @@ does not exist or you have an invalid key. Try using the ls command.",
         for key in self.key_value_store.keys() {
             let key = match decrypt(key, &user_provided_encryption_key) {
                 Ok(key) => key,
-                Err(_) => {
-                    return "Decryption failed due to invalid encryption key."
-                        .to_string()
-                }
+                Err(e) => e.to_string(),
             };
             keys.push_str(format!("{}\n", key).as_str());
         }
