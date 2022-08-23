@@ -7,6 +7,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+const THREAD_COUNT: usize = 4;
+
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
@@ -20,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let key_value_store = Arc::new(RwLock::new(KeyValueStore::new()));
 
-    let thread_pool = ThreadPool::new(4);
+    let thread_pool = ThreadPool::new(THREAD_COUNT);
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
