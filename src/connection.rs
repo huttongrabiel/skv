@@ -266,6 +266,10 @@ impl Default for KeyValueStore {
     }
 }
 
+/// Write to the provided stream.
+///
+/// Status line is the standard 'HTTP/1.1 200 OK' yadda yadda yadda...
+/// Body is the string data that you want to write to the stream.
 pub fn write_stream(
     mut stream: &TcpStream,
     status_line: String,
@@ -298,6 +302,9 @@ pub enum RequestType {
     Unknown((String, String)),
 }
 
+/// Extract the HTTP method from the stream buffer.
+///
+/// Must be called AFTER buf_from_stream.
 pub fn request_type(buf: &[u8; 1024]) -> RequestType {
     let get_request = b"GET";
     let put_request = b"PUT";
@@ -322,6 +329,13 @@ pub fn request_type(buf: &[u8; 1024]) -> RequestType {
     }
 }
 
+/// Verify that the request contained with the buffer is a valid HTTP request.
+///
+/// This uses a small regex pattern.
+///
+/// # Panics
+///
+/// Regex::new() can panic, but it shouldn't ever panic because it is hardcoded.
 pub fn verify_request(buf: &[u8; 1024]) -> Result<(), &'static str> {
     // Verify request has valid HTTP header.
     let buf_string = String::from_utf8_lossy(buf);
@@ -338,6 +352,7 @@ pub fn verify_request(buf: &[u8; 1024]) -> Result<(), &'static str> {
     Ok(())
 }
 
+/// Read the stream into a buffer.
 pub fn buf_from_stream(
     mut stream: &TcpStream,
 ) -> Result<[u8; 1024], &'static str> {
