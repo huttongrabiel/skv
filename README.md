@@ -4,6 +4,9 @@ A (VERY) simple networked key-value store.
 
 **This is not by any means a production tool, and I wouldn't use it as such.**
 
+*Also note that this key-value store is NOT persistent, if the server goes down,
+so does the data*
+
 ---
 
 # Installation
