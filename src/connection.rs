@@ -42,74 +42,7 @@ impl KeyValueStore {
         }
     }
 
-    /// Handle a TCP Request to the key-value store.
-    ///
-    /// Errors are propagated back to the caller.
-    pub fn handle_request(
-        &mut self,
-        mut stream: TcpStream,
-    ) -> Result<(), &'static str> {
-        let mut buf = [0; 1024];
-        match stream.read(&mut buf) {
-            Ok(_) => (),
-            Err(_) => return Err("Failed to read stream to buffer"),
-        }
-
-        // Verify request has valid HTTP header.
-        let buf_string = String::from_utf8_lossy(&buf);
-        let pattern =
-            Regex::new(r"\w{3,6}\s/\w*\sHTTP/1.1\r\n(\w*\r\n)*").unwrap();
-
-        // FIXME: When hitting localhost:3400 in browser, this message is
-        // displayed in the terminal, yet the output in the browser is fine. Has
-        // to do with the additional information included in the request that
-        // the browser sends.
-        if !pattern.is_match(&buf_string) {
-            return Err("Invalid HTTP request received.");
-        }
-
-        let get_request = b"GET";
-        let put_request = b"PUT";
-        let delete_request = b"DELETE";
-
-        // Default response if request is anything but get, put, or delete.
-        let unknown_request = (
-            "HTTP/1.1 400 BAD REQUEST".to_string(),
-            "This key-value store does not support \
-            the HTTP request you are trying to make."
-                .to_string(),
-        );
-
-        let (status_line, body) = if buf.starts_with(get_request) {
-            self.handle_get_request(&buf)
-        } else if buf.starts_with(put_request) {
-            self.handle_put_request(&buf)
-        } else if buf.starts_with(delete_request) {
-            self.handle_delete_request(&buf)
-        } else {
-            unknown_request
-        };
-
-        let response = format!(
-            "{}\r\nContent-Length: {}\r\n\r\n{}",
-            status_line,
-            body.len(),
-            body
-        );
-
-        match stream.write(response.as_bytes()) {
-            Ok(_) => (),
-            Err(_) => return Err("Failed to write to stream."),
-        }
-        match stream.flush() {
-            Ok(_) => (),
-            Err(_) => return Err("Failed to flush stream."),
-        };
-
-        Ok(())
-    }
-
-    fn handle_get_request(&self, buf: &[u8; 1024]) -> (String, String) {
+    pub fn handle_get_request(&self, buf: &[u8; 1024]) -> (String, String) {
         let key = match parse_key_from_request(buf) {
             Ok(key) => key,
             Err(_) => {
@@ -172,10 +105,11 @@ does not exist or you have an invalid key. Try using the ls command.",
             value = fs::read_to_string(&value).unwrap();
         }
 
-        ("HTTP/1.1 200 OK".to_string(), value)
+        let status_line = "HTTP/1.1 200 OK".to_string();
+        (status_line, value)
     }
 
-    fn handle_put_request(&mut self, buf: &[u8; 1024]) -> (String, String) {
+    pub fn handle_put_request(&mut self, buf: &[u8; 1024]) -> (String, String) {
         let key = match parse_key_from_request(buf) {
             Ok(key) => key,
             Err(_) => {
@@ -228,7 +162,10 @@ does not exist or you have an invalid key. Try using the ls command.",
         }
     }
 
-    fn handle_delete_request(&mut self, buf: &[u8; 1024]) -> (String, String) {
+    pub fn handle_delete_request(
+        &mut self,
+        buf: &[u8; 1024],
+    ) -> (String, String) {
         let key = match parse_key_from_request(buf) {
             Ok(key) => key,
             Err(_) => {
@@ -327,6 +264,90 @@ impl Default for KeyValueStore {
     fn default() -> Self {
         Self::new()
     }
+}
+
+pub fn write_stream(
+    mut stream: &TcpStream,
+    status_line: String,
+    body: String,
+) -> Result<(), &'static str> {
+    let response = format!(
+        "{}\r\nContent-Length: {}\r\n\r\n{}",
+        status_line,
+        body.len(),
+        body
+    );
+
+    match stream.write(response.as_bytes()) {
+        Ok(_) => (),
+        Err(_) => return Err("Failed to write to stream."),
+    }
+    match stream.flush() {
+        Ok(_) => (),
+        Err(_) => return Err("Failed to flush stream."),
+    };
+
+    Ok(())
+}
+
+#[derive(Debug)]
+pub enum RequestType {
+    Get,
+    Put,
+    Delete,
+    Unknown((String, String)),
+}
+
+pub fn request_type(buf: &[u8; 1024]) -> RequestType {
+    let get_request = b"GET";
+    let put_request = b"PUT";
+    let delete_request = b"DELETE";
+
+    // Default response if request is anything but get, put, or delete.
+    let unknown_request = (
+        "HTTP/1.1 400 BAD REQUEST".to_string(),
+        "This key-value store does not support \
+            the HTTP request you are trying to make."
+            .to_string(),
+    );
+
+    if buf.starts_with(get_request) {
+        RequestType::Get
+    } else if buf.starts_with(put_request) {
+        RequestType::Put
+    } else if buf.starts_with(delete_request) {
+        RequestType::Delete
+    } else {
+        RequestType::Unknown(unknown_request)
+    }
+}
+
+pub fn verify_request(buf: &[u8; 1024]) -> Result<(), &'static str> {
+    // Verify request has valid HTTP header.
+    let buf_string = String::from_utf8_lossy(buf);
+    let pattern = Regex::new(r"\w{3,6}\s/\w*\sHTTP/1.1\r\n(\w*\r\n)*").unwrap();
+
+    // FIXME: When hitting localhost:3400 in browser, this message is
+    // displayed in the terminal, yet the output in the browser is fine. Has
+    // to do with the additional information included in the request that
+    // the browser sends.
+    if !pattern.is_match(&buf_string) {
+        return Err("Invalid HTTP request received.");
+    }
+
+    Ok(())
+}
+
+pub fn buf_from_stream(
+    mut stream: &TcpStream,
+) -> Result<[u8; 1024], &'static str> {
+    let mut buf = [0; 1024];
+    match stream.read(&mut buf) {
+        Ok(_) => (),
+        Err(_) => return Err("Failed to read stream to buffer"),
+    }
+
+    Ok(buf)
 }
 
 fn parse_body_from_request(buf: &[u8; 1024]) -> Result<String, &'static str> {
