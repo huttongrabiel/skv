@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     .write()
                     .expect("Failed to acquire write lock for DELETE request.")
                     .handle_put_request(&buf),
-                RequestType::Unknown(mesg) => mesg,
+                RequestType::Unknown(unknown_response) => unknown_response,
             };
             match connection::write_stream(&stream, status_line, body) {
                 Ok(_) => (),
