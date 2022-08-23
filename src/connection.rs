@@ -294,7 +294,7 @@ pub fn write_stream(
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum RequestType {
     Get,
     Put,
