@@ -109,7 +109,7 @@ impl KeyValueStore {
         Ok(())
     }
 
-    fn handle_get_request(&mut self, buf: &[u8; 1024]) -> (String, String) {
+    fn handle_get_request(&self, buf: &[u8; 1024]) -> (String, String) {
         let key = match parse_key_from_request(buf) {
             Ok(key) => key,
             Err(_) => {
