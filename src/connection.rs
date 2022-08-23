@@ -516,4 +516,15 @@ mod test {
             "606edace3053c4e9222515b7ba0e16e41648c40c56860edb464f813cd53c5726"
         );
     }
+
+    #[test]
+    fn test_request_type() {
+        assert_eq!(request_type(&SAMPLE_PUT_REQUEST), RequestType::Put);
+        assert_ne!(request_type(&SAMPLE_PUT_REQUEST), RequestType::Get);
+    }
+
+    #[test]
+    fn test_verify_request() {
+        verify_request(&SAMPLE_PUT_REQUEST).unwrap();
+    }
 }
