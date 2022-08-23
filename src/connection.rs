@@ -440,7 +440,7 @@ mod test {
 
     // Yes, this buffer is big and ugly, but that is how our TCP stream
     // comes in.
-    pub const BUF: [u8; 1024] = [
+    pub const SAMPLE_PUT_REQUEST: [u8; 1024] = [
         80, 85, 84, 32, 47, 83, 97, 109, 112, 108, 101, 75, 101, 121, 32, 72,
         84, 84, 80, 47, 49, 46, 49, 13, 10, 72, 111, 115, 116, 58, 32, 108,
         111, 99, 97, 108, 104, 111, 115, 116, 58, 51, 52, 48, 48, 13, 10, 85,
@@ -493,17 +493,24 @@ mod test {
 
     #[test]
     fn parse_body() {
-        assert_eq!(parse_body_from_request(&BUF).unwrap(), "SampleValue");
+        assert_eq!(
+            parse_body_from_request(&SAMPLE_PUT_REQUEST).unwrap(),
+            "SampleValue"
+        );
     }
 
     #[test]
     fn parse_key() {
-        assert_eq!(parse_key_from_request(&BUF).unwrap(), "SampleKey");
+        assert_eq!(
+            parse_key_from_request(&SAMPLE_PUT_REQUEST).unwrap(),
+            "SampleKey"
+        );
     }
 
     #[test]
     fn test_parse_encryption_key_from_headers() {
-        let encryption_key = parse_encryption_key_from_headers(&BUF).unwrap();
+        let encryption_key =
+            parse_encryption_key_from_headers(&SAMPLE_PUT_REQUEST).unwrap();
         assert_eq!(
             encryption_key,
             "606edace3053c4e9222515b7ba0e16e41648c40c56860edb464f813cd53c5726"
